@@ -32,21 +32,60 @@ class CoinDash extends Phaser.Scene {
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
+    this.slowUntil = 0;
+    this.powerUp = this.add.rectangle(0, 0, 16, 16, c.colors.powerUp).setAngle(45);
+    this.physics.add.existing(this.powerUp);
+    this.powerUp.setVisible(false).body.enable = false;
+    this.tweens.add({ targets: this.powerUp, scale: 1.3, duration: 350, yoyo: true, repeat: -1 });
+    this.physics.add.overlap(this.player, this.powerUp, () => {
+      if (this.finished || !this.powerUp.visible) return;
+      this.hidePowerUp();
+      this.slowUntil = this.time.now + c.powerUp.slowSeconds * 1000;
+    });
+    this.slowBar = this.add.rectangle(c.width / 2 - 100, 22, 200, 8, c.colors.powerUp).setOrigin(0, 0.5);
+    this.slowText = this.add.text(c.width / 2, 34, '', { font: '12px monospace', color: '#4da3ff' })
+      .setOrigin(0.5, 0);
+    this.schedulePowerUp();
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
   }
 
-  placeCoin() {
+  // Pick a random spot that is not directly underneath the player.
+  randomSpot() {
     const c = COIN_DASH;
-    // Avoid spawning the next coin directly underneath the player.
     let x, y;
     do {
       x = Phaser.Math.Between(25, c.width - 25);
       y = Phaser.Math.Between(70, c.height - 25);
     } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60);
+    return { x, y };
+  }
+
+  placeCoin() {
+    const { x, y } = this.randomSpot();
     this.coin.setPosition(x, y);
     this.coin.body.reset(x, y);
+  }
+
+  schedulePowerUp() {
+    const p = COIN_DASH.powerUp;
+    this.time.delayedCall(Phaser.Math.Between(p.spawnMinSeconds, p.spawnMaxSeconds) * 1000, () => {
+      if (this.finished) return;
+      const { x, y } = this.randomSpot();
+      this.powerUp.setPosition(x, y).setVisible(true);
+      this.powerUp.body.reset(x, y);
+      this.powerUp.body.enable = true;
+      // Vanishes if not collected in time; either way, the next one is scheduled.
+      this.powerUpExpiry = this.time.delayedCall(p.lifetimeSeconds * 1000, () => this.hidePowerUp());
+    });
+  }
+
+  hidePowerUp() {
+    if (this.powerUpExpiry) this.powerUpExpiry.remove();
+    this.powerUp.setVisible(false);
+    this.powerUp.body.enable = false;
+    this.schedulePowerUp();
   }
 
   update() {
@@ -57,9 +96,24 @@ class CoinDash extends Phaser.Scene {
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
+    this.updateSlow();
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
     this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
     if (seconds === 0) this.finish('Time is up!');
+  }
+
+  updateSlow() {
+    const c = COIN_DASH;
+    const remaining = Math.max(0, this.slowUntil - this.time.now);
+    const slowed = remaining > 0;
+    // Bounces keep speed, so setting the length each frame is enough to slow and restore drones.
+    const speed = c.droneSpeed * (slowed ? c.powerUp.slowFactor : 1);
+    this.drones.getChildren().forEach(drone => {
+      drone.body.velocity.setLength(speed);
+      drone.setFillStyle(slowed ? c.colors.slowedDrone : c.colors.drone);
+    });
+    this.slowBar.setVisible(slowed).setSize(200 * remaining / (c.powerUp.slowSeconds * 1000), 8);
+    this.slowText.setText(slowed ? `SLOW ${(remaining / 1000).toFixed(1)}s` : '');
   }
 
   finish(reason) {
