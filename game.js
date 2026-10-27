@@ -20,6 +20,8 @@ class CoinDash extends Phaser.Scene {
     const c = COIN_DASH;
     this.score = 0;
     this.highScore = loadHighScore();
+    this.lives = c.lives;
+    this.invincibleUntil = 0;
     this.finished = false;
     this.paused = false;
     this.deadline = this.time.now + c.roundSeconds * 1000;
@@ -27,6 +29,11 @@ class CoinDash extends Phaser.Scene {
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
+    this.hearts = [];
+    for (let i = 0; i < c.lives; i++) {
+      this.hearts.push(this.add.text(c.width - 18 - (c.lives - 1 - i) * 26, 10, '\u2665',
+        { font: '22px monospace', color: '#ff657a' }).setOrigin(1, 0));
+    }
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
@@ -47,7 +54,7 @@ class CoinDash extends Phaser.Scene {
       this.score++;
       this.placeCoin();
     });
-    this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
+    this.physics.add.overlap(this.player, this.drones, () => this.hit());
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
@@ -84,6 +91,24 @@ class CoinDash extends Phaser.Scene {
     } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60);
     this.coin.setPosition(x, y);
     this.coin.body.reset(x, y);
+  }
+
+  hit() {
+    if (this.finished || this.time.now < this.invincibleUntil) return;
+    this.lives--;
+    this.hearts[this.lives].setColor('#3a4a63');
+    if (this.lives === 0) {
+      this.finish('A drone caught you!');
+      return;
+    }
+    const ms = COIN_DASH.hitInvincibleMs;
+    this.invincibleUntil = this.time.now + ms;
+    // Blink while invincible so the player can see the grace period.
+    this.tweens.add({
+      targets: this.player, alpha: 0.25, duration: 100, yoyo: true,
+      repeat: Math.max(0, Math.round(ms / 200) - 1),
+      onComplete: () => this.player.setAlpha(1)
+    });
   }
 
   update() {
