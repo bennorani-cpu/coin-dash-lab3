@@ -13,6 +13,23 @@ function saveHighScore(value) {
   try { window.localStorage.setItem(HIGH_SCORE_KEY, String(value)); } catch (e) { /* ignore */ }
 }
 
+class StartScreen extends Phaser.Scene {
+  constructor() { super('StartScreen'); }
+
+  create() {
+    const c = COIN_DASH;
+    this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
+      c.colors.background, 1, 0x24334b, 0.45);
+    this.add.text(c.width / 2, c.height / 2 - 50, 'COIN DASH',
+      { font: 'bold 56px monospace', color: '#ffd166' }).setOrigin(0.5);
+    const prompt = this.add.text(c.width / 2, c.height / 2 + 40, 'Press Space to start',
+      { font: '24px monospace', color: '#ffffff' }).setOrigin(0.5);
+    this.tweens.add({ targets: prompt, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
+    this.input.keyboard.addCapture('SPACE');
+    this.input.keyboard.once('keydown-SPACE', () => this.scene.start('CoinDash'));
+  }
+}
+
 class CoinDash extends Phaser.Scene {
   constructor() { super('CoinDash'); }
 
@@ -71,6 +88,10 @@ class CoinDash extends Phaser.Scene {
       ).setOrigin(0.5).setShadow(0, 0, '#ff2bd6', 12, true, true)
     ]).setDepth(10).setVisible(false);
     this.input.keyboard.on('keydown-P', () => this.togglePause());
+    this.input.keyboard.addCapture('SPACE');
+    this.input.keyboard.on('keydown-SPACE', () => {
+      if (this.finished) this.scene.restart();
+    });
     // Glow sprites follow their physics objects after the physics step each frame.
     this.events.on('postupdate', this.syncGlows, this);
     this.events.once('shutdown', () => this.events.off('postupdate', this.syncGlows, this));
@@ -210,7 +231,7 @@ class CoinDash extends Phaser.Scene {
     this.add.rectangle(c.width / 2, c.height / 2, 460, 190, 0x12021f, 0.92)
       .setStrokeStyle(2, c.colors.drone, 1).setDepth(4);
     this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\n${best}\nPress R to try again`,
+      `${reason}\n${this.score} coins collected\n${best}\nPress Space to restart`,
       { font: 'bold 24px monospace', color: '#ffe9ff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5).setShadow(0, 0, '#ff2bd6', 12, true, true).setDepth(4);
   }
@@ -223,5 +244,5 @@ window.coinDashGame = new Phaser.Game({
   backgroundColor: COIN_DASH.colors.background,
   physics: { default: 'arcade', arcade: { debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_HORIZONTALLY },
-  scene: CoinDash
+  scene: [StartScreen, CoinDash]
 });
