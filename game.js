@@ -173,11 +173,12 @@ class CoinDash extends Phaser.Scene {
     }
     const ms = COIN_DASH.hitInvincibleMs;
     this.invincibleUntil = this.time.now + ms;
-    // Blink while invincible so the player can see the grace period.
+    // Blink while invincible so the player can see the grace period; the glow blinks with it.
+    const blinking = [this.player, this.player.glow];
     this.tweens.add({
-      targets: this.player, alpha: 0.25, duration: 100, yoyo: true,
+      targets: blinking, alpha: 0.25, duration: 100, yoyo: true,
       repeat: Math.max(0, Math.round(ms / 200) - 1),
-      onComplete: () => this.player.setAlpha(1)
+      onComplete: () => blinking.forEach(obj => obj.setAlpha(1))
     });
   }
 
