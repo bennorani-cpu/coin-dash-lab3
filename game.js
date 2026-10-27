@@ -70,6 +70,8 @@ class CoinDash extends Phaser.Scene {
     this.invincibleUntil = 0;
     this.finished = false;
     this.paused = false;
+    // The scene clock keeps its paused flag across restarts (e.g. R pressed while paused).
+    this.time.paused = false;
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.glowing = [];
@@ -117,8 +119,9 @@ class CoinDash extends Phaser.Scene {
       this.hidePowerUp();
       this.slowUntil = this.time.now + c.powerUp.slowSeconds * 1000;
     });
-    this.slowBar = this.add.rectangle(c.width / 2 - 100, 22, 200, 8, c.colors.powerUp).setOrigin(0, 0.5);
-    this.slowText = this.add.text(c.width / 2, 34, '', { font: '12px monospace', color: '#4da3ff' })
+    // Sits between the HUD text and the hearts so it doesn't cover either.
+    this.slowBar = this.add.rectangle(540, 16, 160, 8, c.colors.powerUp).setOrigin(0, 0.5);
+    this.slowText = this.add.text(620, 24, '', { font: '12px monospace', color: '#4da3ff' })
       .setOrigin(0.5, 0);
     this.schedulePowerUp();
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -148,14 +151,18 @@ class CoinDash extends Phaser.Scene {
       this.pausedAt = this.time.now;
       this.physics.pause();
       this.tweens.pauseAll();
+      // Stops power-up spawn/expiry timers; time.now keeps advancing, so the shifts below still work.
+      this.time.paused = true;
     } else {
       // Push the deadline back so time spent paused doesn't count against the round.
       const pausedFor = this.time.now - this.pausedAt;
       this.deadline += pausedFor;
       // Same for any post-hit invincibility that was still running when we paused.
       if (this.invincibleUntil > this.pausedAt) this.invincibleUntil += pausedFor;
+      if (this.slowUntil > this.pausedAt) this.slowUntil += pausedFor;
       this.physics.resume();
       this.tweens.resumeAll();
+      this.time.paused = false;
     }
     this.pauseOverlay.setVisible(this.paused);
   }
@@ -274,9 +281,10 @@ class CoinDash extends Phaser.Scene {
     const speed = c.droneSpeed * (slowed ? c.powerUp.slowFactor : 1);
     this.drones.getChildren().forEach(drone => {
       drone.body.velocity.setLength(speed);
-      drone.setFillStyle(slowed ? c.colors.slowedDrone : c.colors.drone);
+      // Only the neon outline changes; the fill stays the dark one set by styleNeon().
+      drone.setStrokeStyle(2, slowed ? c.colors.slowedDrone : c.colors.drone, 1);
     });
-    this.slowBar.setVisible(slowed).setSize(200 * remaining / (c.powerUp.slowSeconds * 1000), 8);
+    this.slowBar.setVisible(slowed).setSize(160 * remaining / (c.powerUp.slowSeconds * 1000), 8);
     this.slowText.setText(slowed ? `SLOW ${(remaining / 1000).toFixed(1)}s` : '');
   }
 
