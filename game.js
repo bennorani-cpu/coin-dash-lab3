@@ -73,10 +73,15 @@ class CoinDash extends Phaser.Scene {
     if (this.paused) {
       this.pausedAt = this.time.now;
       this.physics.pause();
+      this.tweens.pauseAll();
     } else {
       // Push the deadline back so time spent paused doesn't count against the round.
-      this.deadline += this.time.now - this.pausedAt;
+      const pausedFor = this.time.now - this.pausedAt;
+      this.deadline += pausedFor;
+      // Same for any post-hit invincibility that was still running when we paused.
+      if (this.invincibleUntil > this.pausedAt) this.invincibleUntil += pausedFor;
       this.physics.resume();
+      this.tweens.resumeAll();
     }
     this.pauseOverlay.setVisible(this.paused);
   }
