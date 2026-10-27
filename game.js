@@ -13,17 +13,46 @@ function saveHighScore(value) {
   try { window.localStorage.setItem(HIGH_SCORE_KEY, String(value)); } catch (e) { /* ignore */ }
 }
 
+// Visual only: synthwave gradient sky, faint striped sun and a glowing 40px grid.
+// Shared by the start screen and the game; returns the graphics so callers can draw more.
+function drawNeonBackground(scene) {
+  const c = COIN_DASH;
+  const g = scene.add.graphics().setDepth(0);
+  const top = Phaser.Display.Color.ValueToColor(c.colors.background);
+  const bottom = Phaser.Display.Color.ValueToColor(c.colors.backgroundBottom);
+  const band = y => {
+    const t = Phaser.Display.Color.Interpolate.ColorWithColor(top, bottom, c.height, y);
+    return Phaser.Display.Color.GetColor(t.r, t.g, t.b);
+  };
+  for (let y = 0; y < c.height; y += 10) g.fillStyle(band(y), 1).fillRect(0, y, c.width, 10);
+  const sunY = c.height * 0.62;
+  for (let r = 150; r > 0; r -= 30) g.fillStyle(c.colors.sun, 0.05).fillCircle(c.width / 2, sunY, r);
+  for (let y = sunY + 10, h = 3; y < sunY + 150; y += 22, h += 2) {
+    g.fillStyle(band(y), 0.85).fillRect(c.width / 2 - 160, y, 320, h);
+  }
+  for (let x = 0; x <= c.width; x += 40) {
+    g.lineStyle(5, c.colors.grid, 0.06).lineBetween(x, 44, x, c.height);
+    g.lineStyle(1, c.colors.grid, 0.3).lineBetween(x, 44, x, c.height);
+  }
+  for (let y = 80; y <= c.height; y += 40) {
+    g.lineStyle(5, c.colors.grid, 0.06).lineBetween(0, y, c.width, y);
+    g.lineStyle(1, c.colors.grid, 0.3).lineBetween(0, y, c.width, y);
+  }
+  return g;
+}
+
 class StartScreen extends Phaser.Scene {
   constructor() { super('StartScreen'); }
 
   create() {
     const c = COIN_DASH;
-    this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
-      c.colors.background, 1, 0x24334b, 0.45);
+    drawNeonBackground(this);
     this.add.text(c.width / 2, c.height / 2 - 50, 'COIN DASH',
-      { font: 'bold 56px monospace', color: '#ffd166' }).setOrigin(0.5);
+      { font: 'bold 56px monospace', color: c.colors.hud, padding: { x: 16, y: 16 } })
+      .setOrigin(0.5).setShadow(0, 0, c.colors.hudGlow, 16, true, true);
     const prompt = this.add.text(c.width / 2, c.height / 2 + 40, 'Press Space to start',
-      { font: '24px monospace', color: '#ffffff' }).setOrigin(0.5);
+      { font: 'bold 24px monospace', color: '#ffe9ff' })
+      .setOrigin(0.5).setShadow(0, 0, '#ff2bd6', 12, true, true);
     this.tweens.add({ targets: prompt, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
     this.input.keyboard.addCapture('SPACE');
     this.input.keyboard.once('keydown-SPACE', () => this.scene.start('CoinDash'));
@@ -117,30 +146,10 @@ class CoinDash extends Phaser.Scene {
     this.pauseOverlay.setVisible(this.paused);
   }
 
-  // Visual only: synthwave gradient sky, faint striped sun and a glowing 40px grid.
+  // Visual only: neon background plus the darkened HUD strip along the top.
   drawBackground() {
     const c = COIN_DASH;
-    const g = this.add.graphics().setDepth(0);
-    const top = Phaser.Display.Color.ValueToColor(c.colors.background);
-    const bottom = Phaser.Display.Color.ValueToColor(c.colors.backgroundBottom);
-    const band = y => {
-      const t = Phaser.Display.Color.Interpolate.ColorWithColor(top, bottom, c.height, y);
-      return Phaser.Display.Color.GetColor(t.r, t.g, t.b);
-    };
-    for (let y = 0; y < c.height; y += 10) g.fillStyle(band(y), 1).fillRect(0, y, c.width, 10);
-    const sunY = c.height * 0.62;
-    for (let r = 150; r > 0; r -= 30) g.fillStyle(c.colors.sun, 0.05).fillCircle(c.width / 2, sunY, r);
-    for (let y = sunY + 10, h = 3; y < sunY + 150; y += 22, h += 2) {
-      g.fillStyle(band(y), 0.85).fillRect(c.width / 2 - 160, y, 320, h);
-    }
-    for (let x = 0; x <= c.width; x += 40) {
-      g.lineStyle(5, c.colors.grid, 0.06).lineBetween(x, 44, x, c.height);
-      g.lineStyle(1, c.colors.grid, 0.3).lineBetween(x, 44, x, c.height);
-    }
-    for (let y = 80; y <= c.height; y += 40) {
-      g.lineStyle(5, c.colors.grid, 0.06).lineBetween(0, y, c.width, y);
-      g.lineStyle(1, c.colors.grid, 0.3).lineBetween(0, y, c.width, y);
-    }
+    const g = drawNeonBackground(this);
     g.fillStyle(0x07020f, 0.75).fillRect(0, 0, c.width, 44);
     g.lineStyle(6, c.colors.player, 0.15).lineBetween(0, 44, c.width, 44);
     g.lineStyle(2, c.colors.player, 0.9).lineBetween(0, 44, c.width, 44);
