@@ -6,5 +6,9 @@ window.COIN_DASH = {
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
-  colors: { background: 0x101c31, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a }
+  // Neon / synthwave palette: purely visual, no gameplay values live here.
+  colors: {
+    background: 0x12052a, backgroundBottom: 0x3a0a4a, grid: 0xff3cc7, sun: 0xff8a3d,
+    player: 0x22f3ff, coin: 0xffe14d, drone: 0xff2bd6, hud: '#9ffcff', hudGlow: '#22f3ff'
+  }
 };
